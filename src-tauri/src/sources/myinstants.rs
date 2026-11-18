@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn lit_la_page_fr_enregistree() {
-        let sons = lire_sons(include_str!("../tests/myinstants_fr.html"));
+        let sons = lire_sons(include_str!("../../tests/myinstants_fr.html"));
         assert_eq!(sons.len(), 36);
         for (titre, url) in &sons {
             assert!(!titre.is_empty() && !titre.contains("&#x27;"), "titre mal lu : {titre}");
