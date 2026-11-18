@@ -5,6 +5,7 @@ const etat = document.querySelector("#etat");
 const ecoute = new Audio();
 const boutonStop = document.querySelector("#lecture-stop");
 const boutonPause = document.querySelector("#lecture-pause");
+const boutonRejouer = document.querySelector("#lecture-rejouer");
 const barreTitre = document.querySelector("#lecture-titre");
 const progression = document.querySelector("#lecture-progression");
 
@@ -46,13 +47,19 @@ function ligne(titre, url) {
   li.dataset.titre = titre;
   bouton.textContent = "▶";
   bouton.setAttribute("aria-label", `Écouter ${titre}`);
-  bouton.onclick = () => (ligneEnCours === li ? arreter() : jouer(li, url));
+  // Sur la ligne en cours : ▶ reprend si en pause, ■ arrête sinon.
+  bouton.onclick = () =>
+    ligneEnCours !== li ? jouer(li, url) : ecoute.paused ? ecoute.play() : arreter();
   li.append(bouton, titre);
   return li;
 }
 
+let dernier = null; // le dernier son joué, pour ↻ Rejouer
+
 function jouer(li, url) {
   arreter();
+  dernier = { li, url };
+  boutonRejouer.disabled = false;
   ligneEnCours = li;
   li.classList.add("en-cours");
   const bouton = li.querySelector("button");
@@ -60,6 +67,7 @@ function jouer(li, url) {
   bouton.setAttribute("aria-label", `Arrêter ${li.dataset.titre}`);
   barreTitre.textContent = `🎧 Écoute : ${li.dataset.titre}`;
   progression.value = 0;
+  progression.disabled = false;
   boutonStop.disabled = false;
   boutonPause.disabled = false;
   ecoute.src = url;
@@ -70,6 +78,7 @@ function arreter() {
   ecoute.pause();
   barreTitre.textContent = "Aucun son en cours";
   progression.value = 0;
+  progression.disabled = true;
   boutonStop.disabled = true;
   boutonPause.disabled = true;
   afficherPause(false);
@@ -91,10 +100,19 @@ ecoute.ontimeupdate = () => {
   progression.value = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
 };
 boutonStop.onclick = arreter;
+boutonRejouer.onclick = () => dernier && jouer(dernier.li, dernier.url);
+// Clic ou glissement sur la barre : saute à ce moment du son.
+progression.oninput = () => {
+  if (ecoute.duration) ecoute.currentTime = progression.value * ecoute.duration;
+};
 
 function afficherPause(enPause) {
   boutonPause.textContent = enPause ? "▶" : "⏸";
   boutonPause.setAttribute("aria-label", enPause ? "Reprendre" : "Pause");
+  if (!ligneEnCours) return;
+  const bouton = ligneEnCours.querySelector("button");
+  bouton.textContent = enPause ? "▶" : "■";
+  bouton.setAttribute("aria-label", `${enPause ? "Reprendre" : "Arrêter"} ${ligneEnCours.dataset.titre}`);
 }
 
 // Suit l'état réel du lecteur ; ignoré après arreter(), qui remet ⏸ lui-même.
