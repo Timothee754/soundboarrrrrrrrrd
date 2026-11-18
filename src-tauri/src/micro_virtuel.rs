@@ -36,8 +36,8 @@ impl MicroVirtuel {
     fn creer(&mut self) -> Result<(), String> {
         let vraie_voix = format!("source={}", self.ancien_micro);
         for args in [
-            &["module-null-sink", "sink_name=soundboard_sons", r#"sink_properties=device.description="Sons Soundboard""#][..],
-            &["module-null-sink", "sink_name=soundboard_mix", r#"sink_properties=device.description="Mix Soundboard""#],
+            &["module-null-sink", "sink_name=soundboard_sons", r#"sink_properties='device.description="Sons Soundboard"'"#][..],
+            &["module-null-sink", "sink_name=soundboard_mix", r#"sink_properties='device.description="Mix Soundboard"'"#],
             &["module-loopback", &vraie_voix, "sink=soundboard_mix", "latency_msec=20"],
             // Retour des sons dans le casque (sortie par défaut).
             &["module-loopback", "source=soundboard_sons.monitor", "latency_msec=20"],
@@ -45,7 +45,7 @@ impl MicroVirtuel {
                 "module-remap-source",
                 "master=soundboard_mix.monitor",
                 "source_name=soundboard_micro",
-                r#"source_properties=device.description="Micro Soundboard""#,
+                r#"source_properties='device.description="Micro Soundboard"'"#,
             ],
         ] {
             self.modules.push(charger(args)?);
