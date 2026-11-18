@@ -3,6 +3,11 @@ const { invoke } = window.__TAURI__.core;
 const liste = document.querySelector("#resultats");
 const etat = document.querySelector("#etat");
 const ecoute = new Audio();
+const barre = document.querySelector("#lecture");
+const barreTitre = document.querySelector("#lecture-titre");
+const progression = document.querySelector("#lecture-progression");
+
+let ligneEnCours = null; // la ligne du son qui joue, pour la surbrillance
 
 let mot = "";
 let page = 0;
@@ -37,15 +42,49 @@ async function pageSuivante() {
 function ligne(titre, url) {
   const li = document.createElement("li");
   const bouton = document.createElement("button");
+  li.dataset.titre = titre;
   bouton.textContent = "▶";
   bouton.setAttribute("aria-label", `Écouter ${titre}`);
-  bouton.onclick = () => {
-    ecoute.src = url;
-    ecoute.play();
-  };
+  bouton.onclick = () => (ligneEnCours === li ? arreter() : jouer(li, url));
   li.append(bouton, titre);
   return li;
 }
+
+function jouer(li, url) {
+  arreter();
+  ligneEnCours = li;
+  li.classList.add("en-cours");
+  const bouton = li.querySelector("button");
+  bouton.textContent = "■";
+  bouton.setAttribute("aria-label", `Arrêter ${li.dataset.titre}`);
+  barreTitre.textContent = `🎧 Écoute : ${li.dataset.titre}`;
+  progression.value = 0;
+  barre.hidden = false;
+  ecoute.src = url;
+  ecoute.play().catch(() => {}); // les erreurs de lecture passent par ecoute.onerror
+}
+
+function arreter() {
+  ecoute.pause();
+  barre.hidden = true;
+  if (!ligneEnCours) return;
+  ligneEnCours.classList.remove("en-cours");
+  const bouton = ligneEnCours.querySelector("button");
+  bouton.textContent = "▶";
+  bouton.setAttribute("aria-label", `Écouter ${ligneEnCours.dataset.titre}`);
+  ligneEnCours = null;
+}
+
+ecoute.onended = arreter;
+ecoute.onerror = () => {
+  if (!ligneEnCours) return;
+  etat.textContent = `Impossible de lire « ${ligneEnCours.dataset.titre} ».`;
+  arreter();
+};
+ecoute.ontimeupdate = () => {
+  progression.value = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
+};
+document.querySelector("#lecture-stop").onclick = arreter;
 
 function recommencer() {
   generation += 1;
