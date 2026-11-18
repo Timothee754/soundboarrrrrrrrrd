@@ -8,6 +8,17 @@ body {
   padding: 16px 16px 72px; /* place pour la barre de lecture */
 }
 
+/* Reste en haut pendant le défilement ; les marges négatives couvrent le padding du body. */
+#recherche {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: -16px -16px 0;
+  padding: 16px;
+  background: Canvas;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
 #mot {
   width: 100%;
   box-sizing: border-box;
@@ -40,6 +51,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
+  z-index: 1;
   background: Canvas;
   border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
 }
@@ -54,4 +66,24 @@ body {
 #lecture-progression {
   width: 30%;
   accent-color: #a855f7;
+}
+
+/* Fenêtre étroite : le titre passe sur sa propre ligne, le curseur prend la place restante. */
+@media (max-width: 480px) {
+  body {
+    padding-bottom: 112px;
+  }
+
+  #lecture {
+    flex-wrap: wrap;
+  }
+
+  #lecture-titre {
+    flex-basis: 100%;
+  }
+
+  #lecture-progression {
+    flex: 1;
+    width: auto;
+  }
 }

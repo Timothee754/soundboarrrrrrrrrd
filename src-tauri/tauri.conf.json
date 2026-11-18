@@ -13,7 +13,9 @@
       {
         "title": "Soundboarrrrrrrrrd",
         "width": 720,
-        "height": 640
+        "height": 640,
+        "minWidth": 360,
+        "minHeight": 400
       }
     ],
     "security": {
