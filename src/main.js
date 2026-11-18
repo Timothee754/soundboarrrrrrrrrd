@@ -74,7 +74,6 @@ function ligne(titre, url) {
 let dernier = null; // le dernier son joué, pour ↻ Rejouer
 
 async function jouer(li, bouton, url, micro) {
-  arreter();
   try {
     await invoke("envoyer_au_micro", { actif: micro });
   } catch (e) {
@@ -84,6 +83,8 @@ async function jouer(li, bouton, url, micro) {
       return;
     }
   }
+  // Après l'attente : si deux clics se croisent, le dernier arrivé nettoie l'affichage du premier.
+  arreter();
   dernier = { li, bouton, url, micro };
   boutonRejouer.disabled = false;
   lectureEnCours = { li, bouton };
