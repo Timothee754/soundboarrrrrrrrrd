@@ -3,7 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const liste = document.querySelector("#resultats");
 const etat = document.querySelector("#etat");
 const ecoute = new Audio();
-const barre = document.querySelector("#lecture");
+const boutonStop = document.querySelector("#lecture-stop");
 const barreTitre = document.querySelector("#lecture-titre");
 const progression = document.querySelector("#lecture-progression");
 
@@ -59,14 +59,16 @@ function jouer(li, url) {
   bouton.setAttribute("aria-label", `Arrêter ${li.dataset.titre}`);
   barreTitre.textContent = `🎧 Écoute : ${li.dataset.titre}`;
   progression.value = 0;
-  barre.hidden = false;
+  boutonStop.disabled = false;
   ecoute.src = url;
   ecoute.play().catch(() => {}); // les erreurs de lecture passent par ecoute.onerror
 }
 
 function arreter() {
   ecoute.pause();
-  barre.hidden = true;
+  barreTitre.textContent = "Aucun son en cours";
+  progression.value = 0;
+  boutonStop.disabled = true;
   if (!ligneEnCours) return;
   ligneEnCours.classList.remove("en-cours");
   const bouton = ligneEnCours.querySelector("button");
@@ -84,7 +86,7 @@ ecoute.onerror = () => {
 ecoute.ontimeupdate = () => {
   progression.value = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
 };
-document.querySelector("#lecture-stop").onclick = arreter;
+boutonStop.onclick = arreter;
 
 function recommencer() {
   generation += 1;

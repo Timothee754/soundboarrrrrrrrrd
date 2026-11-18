@@ -44,10 +44,6 @@ body {
   border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
 }
 
-#lecture[hidden] {
-  display: none;
-}
-
 #lecture-titre {
   flex: 1;
   overflow: hidden;
