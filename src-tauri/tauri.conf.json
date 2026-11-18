@@ -12,6 +12,7 @@
     "windows": [
       {
         "title": "Soundboarrrrrrrrrd",
+        "create": false,
         "width": 720,
         "height": 640,
         "minWidth": 360,

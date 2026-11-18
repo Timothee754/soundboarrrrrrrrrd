@@ -21,15 +21,17 @@ pub struct MicroVirtuel {
 impl MicroVirtuel {
     /// Crée le micro virtuel et le met par défaut. Nettoie d'abord les restes d'un plantage.
     pub fn demarrer() -> Result<Self, String> {
-        nettoyer();
+        // Après un plantage, le micro par défaut est encore le nôtre : on remet le vrai micro
+        // d'avant, sinon PipeWire en choisirait un autre (par exemple la prise jack).
+        if let Some(vrai_micro) = nettoyer() {
+            let _ = pactl(&["set-default-source", &vrai_micro]);
+        }
         let ancien_micro = pactl(&["get-default-source"])?;
         let mut micro = MicroVirtuel { modules: Vec::new(), ancien_micro, vers_micro: Mutex::new(None) };
         if let Err(e) = micro.creer() {
             micro.arreter();
             return Err(e);
         }
-        // Avant le lancement de la fenêtre : aucun autre thread ne lit l'environnement.
-        unsafe { std::env::set_var("PULSE_SINK", "soundboard_sons") };
         Ok(micro)
     }
 
@@ -123,14 +125,14 @@ fn charger(args: &[&str]) -> Result<String, String> {
     pactl(&[&["load-module"][..], args].concat())
 }
 
-/// Décharge les modules laissés par un plantage précédent.
+/// Décharge les modules laissés par un plantage précédent, et renvoie le vrai micro qu'ils utilisaient.
 #[cfg(target_os = "linux")]
-fn nettoyer() {
-    if let Ok(liste) = pactl(&["list", "short", "modules"]) {
-        for id in modules_a_nettoyer(&liste) {
-            let _ = pactl(&["unload-module", id]);
-        }
+fn nettoyer() -> Option<String> {
+    let liste = pactl(&["list", "short", "modules"]).ok()?;
+    for id in modules_a_nettoyer(&liste) {
+        let _ = pactl(&["unload-module", id]);
     }
+    vrai_micro_des_restes(&liste).map(String::from)
 }
 
 /// Numéros des modules créés par l'app, d'après `pactl list short modules`.
@@ -140,6 +142,16 @@ fn modules_a_nettoyer(liste: &str) -> Vec<&str> {
         .filter(|l| l.contains("soundboard_"))
         .filter_map(|l| l.split('\t').next())
         .collect()
+}
+
+/// Le vrai micro branché sur le mélange, lu dans les arguments du module qui le relie.
+fn vrai_micro_des_restes(liste: &str) -> Option<&str> {
+    liste
+        .lines()
+        .filter(|l| l.contains("module-loopback") && l.contains("sink=soundboard_mix"))
+        .flat_map(|l| l.split_whitespace())
+        .filter_map(|arg| arg.strip_prefix("source="))
+        .find(|source| !source.starts_with("soundboard_"))
 }
 
 #[cfg(test)]
@@ -153,5 +165,15 @@ mod tests {
                      536870915\tmodule-remap-source\tmaster=soundboard_mix.monitor source_name=soundboard_micro\n\
                      12\tmodule-x11-bell\t";
         assert_eq!(modules_a_nettoyer(liste), vec!["536870913", "536870915"]);
+    }
+
+    #[test]
+    fn retrouve_le_vrai_micro_dans_les_restes() {
+        let liste = "1\tmodule-null-sink\tsink_name=soundboard_mix\n\
+                     2\tmodule-loopback\tsource=soundboard_sons.monitor sink=soundboard_mix latency_msec=20\n\
+                     3\tmodule-loopback\tsource=alsa_input.usb-HyperX sink=soundboard_mix latency_msec=20\n\
+                     4\tmodule-loopback\tsource=soundboard_sons.monitor latency_msec=20";
+        assert_eq!(vrai_micro_des_restes(liste), Some("alsa_input.usb-HyperX"));
+        assert_eq!(vrai_micro_des_restes("12\tmodule-x11-bell\t"), None);
     }
 }
