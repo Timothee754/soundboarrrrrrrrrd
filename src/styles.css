@@ -1,11 +1,80 @@
+/* Thème sombre par défaut (style des apps de joueurs), clair si le système le demande.
+   Deux couleurs à ne jamais mélanger : bleu = reste dans ton casque, rouge = part dans le micro. */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
+  --fond: #0f0d17;
+  --surface: #1a1726;
+  --surface-survol: #252136;
+  --bord: #2e2a42;
+  --texte: #ece9f5;
+  --texte-doux: #9a94b0;
+  --accent: #a855f7;
+  --accent-2: #ec4899;
+  --ecoute: #3b82f6;
+  --micro: #ef4444;
+  --rayon: 10px;
+  --duree: 150ms;
   font-family: system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --fond: #f6f4fb;
+    --surface: #ffffff;
+    --surface-survol: #efeaf9;
+    --bord: #ddd7ec;
+    --texte: #1b1726;
+    --texte-doux: #6b6480;
+    --ecoute: #2563eb;
+    --micro: #dc2626;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duree: 0ms;
+  }
 }
 
 body {
   margin: 0;
-  padding: 16px 16px 72px; /* place pour la barre de lecture */
+  padding: 16px 16px 80px; /* place pour la barre de lecture */
+  background: var(--fond);
+  color: var(--texte);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  min-width: 36px;
+  height: 36px;
+  transition:
+    background var(--duree),
+    transform var(--duree),
+    border-color var(--duree);
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-survol);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Reste en haut pendant le défilement ; les marges négatives couvrent le padding du body. */
@@ -15,33 +84,88 @@ body {
   z-index: 1;
   margin: -16px -16px 0;
   padding: 16px;
-  background: Canvas;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  background: var(--fond);
+  border-bottom: 1px solid var(--bord);
 }
 
 #mot {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 12px;
+  padding: 10px 14px;
+  font: inherit;
   font-size: 1rem;
+  color: var(--texte);
+  background: var(--surface);
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon);
+  outline: none;
+  transition: border-color var(--duree);
+}
+
+#mot:focus {
+  border-color: var(--accent);
 }
 
 #resultats {
   list-style: none;
   padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 6px;
 }
 
 #resultats li {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: var(--rayon);
+  transition:
+    background var(--duree),
+    border-color var(--duree);
+}
+
+#resultats li:hover {
+  background: var(--surface-survol);
+}
+
+.titre {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ▶ à gauche, 🎤 tout à droite : loin l'un de l'autre pour ne pas envoyer un son par erreur. */
+.btn-ecoute {
+  color: var(--ecoute);
+  border-color: color-mix(in srgb, var(--ecoute) 40%, transparent);
+}
+
+.btn-micro {
+  border-color: color-mix(in srgb, var(--micro) 50%, transparent);
+  background: color-mix(in srgb, var(--micro) 12%, var(--surface));
+}
+
+.btn-micro:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--micro) 25%, var(--surface));
 }
 
 #resultats li.en-cours {
-  background: color-mix(in srgb, #a855f7 25%, transparent);
   font-weight: 600;
+  border-color: var(--ecoute);
+  background: color-mix(in srgb, var(--ecoute) 15%, var(--surface));
+}
+
+#resultats li.en-cours.en-direct {
+  border-color: var(--micro);
+  background: color-mix(in srgb, var(--micro) 15%, var(--surface));
+}
+
+#etat {
+  color: var(--texte-doux);
+  text-align: center;
 }
 
 #lecture {
@@ -49,11 +173,29 @@ body {
   inset: auto 0 0 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 12px 16px;
   z-index: 1;
-  background: Canvas;
-  border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  background: var(--surface);
+  border-top: 2px solid var(--bord);
+  transition: border-color var(--duree);
+}
+
+/* Un son part dans le micro : la barre le montre comme le voyant « à l'antenne » d'une radio. */
+#lecture.en-direct {
+  border-top-color: var(--micro);
+}
+
+#lecture.en-direct #lecture-titre::before {
+  content: "EN DIRECT";
+  margin-right: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: var(--micro);
 }
 
 #lecture-titre {
@@ -65,13 +207,17 @@ body {
 
 #lecture-progression {
   width: 30%;
-  accent-color: #a855f7;
+  accent-color: var(--accent);
+}
+
+#lecture.en-direct #lecture-progression {
+  accent-color: var(--micro);
 }
 
 /* Fenêtre étroite : le titre passe sur sa propre ligne, le curseur prend la place restante. */
 @media (max-width: 480px) {
   body {
-    padding-bottom: 112px;
+    padding-bottom: 120px;
   }
 
   #lecture {

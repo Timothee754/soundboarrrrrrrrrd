@@ -8,6 +8,7 @@ const boutonPause = document.querySelector("#lecture-pause");
 const boutonRejouer = document.querySelector("#lecture-rejouer");
 const barreTitre = document.querySelector("#lecture-titre");
 const progression = document.querySelector("#lecture-progression");
+const barre = document.querySelector("#lecture");
 
 const SOURCE = "myinstants";
 
@@ -46,6 +47,7 @@ async function pageSuivante() {
 // micro = false : ▶ dans le casque seulement ; true : 🎤 aussi dans le micro virtuel.
 function boutonLecture(li, url, micro) {
   const bouton = document.createElement("button");
+  bouton.className = micro ? "btn-micro" : "btn-ecoute";
   bouton.dataset.icone = micro ? "🎤" : "▶";
   bouton.dataset.action = micro ? "Envoyer dans le micro" : "Écouter";
   remettreBouton(bouton, li);
@@ -67,7 +69,10 @@ function remettreBouton(bouton, li) {
 function ligne(titre, url) {
   const li = document.createElement("li");
   li.dataset.titre = titre;
-  li.append(boutonLecture(li, url, false), boutonLecture(li, url, true), titre);
+  const texte = document.createElement("span");
+  texte.className = "titre";
+  texte.textContent = titre;
+  li.append(boutonLecture(li, url, false), texte, boutonLecture(li, url, true));
   return li;
 }
 
@@ -89,6 +94,8 @@ async function jouer(li, bouton, url, micro) {
   boutonRejouer.disabled = false;
   lectureEnCours = { li, bouton };
   li.classList.add("en-cours");
+  li.classList.toggle("en-direct", micro);
+  barre.classList.toggle("en-direct", micro);
   afficherPause(false);
   barreTitre.textContent = `${micro ? "🎤 Dans le micro" : "🎧 Écoute"} : ${li.dataset.titre}`;
   progression.value = 0;
@@ -108,8 +115,9 @@ function arreter() {
   boutonPause.disabled = true;
   boutonPause.textContent = "⏸";
   boutonPause.setAttribute("aria-label", "Pause");
+  barre.classList.remove("en-direct");
   if (!lectureEnCours) return;
-  lectureEnCours.li.classList.remove("en-cours");
+  lectureEnCours.li.classList.remove("en-cours", "en-direct");
   remettreBouton(lectureEnCours.bouton, lectureEnCours.li);
   lectureEnCours = null;
 }
