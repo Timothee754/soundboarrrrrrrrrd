@@ -13,5 +13,12 @@
     </form>
     <ul id="resultats"></ul>
     <p id="etat" role="status"></p>
+    <footer id="lecture">
+      <span id="lecture-titre" aria-live="polite">Aucun son en cours</span>
+      <input id="lecture-progression" type="range" min="0" max="1" step="0.001" value="0" aria-label="Progression" disabled />
+      <button id="lecture-rejouer" aria-label="Rejouer le dernier son" disabled>↻</button>
+      <button id="lecture-pause" aria-label="Pause" disabled>⏸</button>
+      <button id="lecture-stop" aria-label="Arrêter" disabled>■</button>
+    </footer>
   </body>
 </html>
