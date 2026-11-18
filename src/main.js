@@ -4,6 +4,7 @@ const liste = document.querySelector("#resultats");
 const etat = document.querySelector("#etat");
 const ecoute = new Audio();
 const boutonStop = document.querySelector("#lecture-stop");
+const boutonPause = document.querySelector("#lecture-pause");
 const barreTitre = document.querySelector("#lecture-titre");
 const progression = document.querySelector("#lecture-progression");
 
@@ -60,6 +61,7 @@ function jouer(li, url) {
   barreTitre.textContent = `🎧 Écoute : ${li.dataset.titre}`;
   progression.value = 0;
   boutonStop.disabled = false;
+  boutonPause.disabled = false;
   ecoute.src = url;
   ecoute.play().catch(() => {}); // les erreurs de lecture passent par ecoute.onerror
 }
@@ -69,6 +71,8 @@ function arreter() {
   barreTitre.textContent = "Aucun son en cours";
   progression.value = 0;
   boutonStop.disabled = true;
+  boutonPause.disabled = true;
+  afficherPause(false);
   if (!ligneEnCours) return;
   ligneEnCours.classList.remove("en-cours");
   const bouton = ligneEnCours.querySelector("button");
@@ -87,6 +91,16 @@ ecoute.ontimeupdate = () => {
   progression.value = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
 };
 boutonStop.onclick = arreter;
+
+function afficherPause(enPause) {
+  boutonPause.textContent = enPause ? "▶" : "⏸";
+  boutonPause.setAttribute("aria-label", enPause ? "Reprendre" : "Pause");
+}
+
+// Suit l'état réel du lecteur ; ignoré après arreter(), qui remet ⏸ lui-même.
+ecoute.onplay = () => afficherPause(false);
+ecoute.onpause = () => ligneEnCours && afficherPause(true);
+boutonPause.onclick = () => (ecoute.paused ? ecoute.play() : ecoute.pause());
 
 function recommencer() {
   generation += 1;
