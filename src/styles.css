@@ -39,7 +39,7 @@
 
 body {
   margin: 0;
-  padding: 16px 16px 80px; /* place pour la barre de lecture */
+  padding: 16px;
   background: var(--fond);
   color: var(--texte);
 }
@@ -125,38 +125,87 @@ button:disabled {
   border-color: var(--accent);
 }
 
-#resultats {
+#etat {
+  color: var(--texte-doux);
+  text-align: center;
+}
+
+#etat:empty {
+  display: none;
+}
+
+#favoris-vide {
+  margin-top: 48px;
+  text-align: center;
+  color: var(--texte-doux);
+}
+
+/* ---------- Box : plusieurs sons par ligne, autant que la largeur le permet ---------- */
+
+.boites {
   list-style: none;
   padding: 0;
-  margin: 12px 0 0;
+  margin: 16px 0 0;
   display: grid;
-  gap: 6px;
-}
-
-#resultats li {
-  display: flex;
-  align-items: center;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 12px;
-  padding: 6px 8px;
-  background: var(--surface);
-  border: 1px solid transparent;
+}
+
+/* Titre et bouton de coin en haut ; 🎧 à gauche et 🎤 à droite en bas, loin l'un de l'autre. */
+.boite {
+  --progression: 0%;
+  --remplissage: transparent;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "titre titre coin"
+    "ecoute . micro";
+  align-items: start;
+  gap: 10px;
+  min-height: 96px;
+  padding: 10px;
+  border: 2px solid var(--bord);
   border-radius: var(--rayon);
-  transition:
-    background var(--duree),
-    border-color var(--duree);
+  /* Pendant la lecture, la box se remplit de gauche à droite. */
+  background:
+    linear-gradient(to right, var(--remplissage) var(--progression), transparent var(--progression)),
+    var(--surface);
+  transition: border-color var(--duree);
 }
 
-#resultats li:hover {
-  background: var(--surface-survol);
+.boite:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--bord));
 }
 
-.titre {
-  flex: 1;
-  min-width: 0;
+.boite-titre {
+  grid-area: titre;
+  font-weight: 600;
   overflow-wrap: anywhere;
+  /* Au plus 3 lignes : les titres très longs finissent par « … ». */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* ▶ à gauche, 🎤 tout à droite : loin l'un de l'autre pour ne pas envoyer un son par erreur. */
+.boite .btn-coin {
+  grid-area: coin;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 0.8rem;
+}
+
+.boite .btn-ecoute {
+  grid-area: ecoute;
+  align-self: end;
+}
+
+.boite .btn-micro {
+  grid-area: micro;
+  align-self: end;
+}
+
 .btn-ecoute {
   color: var(--ecoute);
   border-color: color-mix(in srgb, var(--ecoute) 40%, transparent);
@@ -171,24 +220,14 @@ button:disabled {
   background: color-mix(in srgb, var(--micro) 25%, var(--surface));
 }
 
-#resultats li.en-cours {
-  font-weight: 600;
+.boite.en-cours {
+  --remplissage: color-mix(in srgb, var(--ecoute) 30%, transparent);
   border-color: var(--ecoute);
-  background: color-mix(in srgb, var(--ecoute) 15%, var(--surface));
 }
 
-#resultats li.en-cours.en-direct {
+.boite.en-cours.en-direct {
+  --remplissage: color-mix(in srgb, var(--micro) 35%, transparent);
   border-color: var(--micro);
-  background: color-mix(in srgb, var(--micro) 15%, var(--surface));
-}
-
-#etat {
-  color: var(--texte-doux);
-  text-align: center;
-}
-
-#etat:empty {
-  display: none;
 }
 
 .btn-ajout {
@@ -201,146 +240,12 @@ button:disabled {
   color: var(--texte-doux);
 }
 
-/* ---------- Favoris : des tuiles faciles à toucher sans viser ---------- */
-
-#favoris-vide {
-  margin-top: 48px;
-  text-align: center;
+.btn-retirer {
   color: var(--texte-doux);
 }
 
-#grille {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-/* La tuile prend toute la hauteur de sa ligne : ses petits boutons restent dedans. */
-.tuile {
-  position: relative;
-  display: flex;
-  --progression: 0%;
-}
-
-.tuile-envoyer {
-  flex: 1;
-  height: auto;
-  min-height: 96px;
-  padding: 16px 12px 36px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-  border: 2px solid var(--bord);
-  /* Pendant la lecture, la tuile se remplit de gauche à droite. */
-  background:
-    linear-gradient(to right, var(--remplissage, transparent) var(--progression), transparent var(--progression)),
-    var(--surface);
-}
-
-.tuile-envoyer:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--micro) 60%, var(--bord));
-  background:
-    linear-gradient(to right, var(--remplissage, transparent) var(--progression), transparent var(--progression)),
-    var(--surface-survol);
-}
-
-.tuile.en-cours .tuile-envoyer {
-  --remplissage: color-mix(in srgb, var(--ecoute) 30%, transparent);
-  border-color: var(--ecoute);
-}
-
-.tuile.en-cours.en-direct .tuile-envoyer {
-  --remplissage: color-mix(in srgb, var(--micro) 35%, transparent);
-  border-color: var(--micro);
-}
-
-.tuile-ecouter,
-.tuile-retirer {
-  position: absolute;
-  bottom: 6px;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 6px;
-  font-size: 0.8rem;
-}
-
-.tuile-ecouter {
-  left: 6px;
-}
-
-.tuile-retirer {
-  right: 6px;
-  color: var(--texte-doux);
-}
-
-.tuile-retirer.confirmer {
+.btn-retirer.confirmer {
   color: #fff;
   background: var(--micro);
   border-color: var(--micro);
-}
-
-#lecture {
-  position: fixed;
-  inset: auto 0 0 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  z-index: 1;
-  background: var(--surface);
-  border-top: 2px solid var(--bord);
-  transition: border-color var(--duree);
-}
-
-/* Un son part dans le micro : la barre le montre comme le voyant « à l'antenne » d'une radio. */
-#lecture.en-direct {
-  border-top-color: var(--micro);
-}
-
-#lecture.en-direct #lecture-titre::before {
-  content: "EN DIRECT";
-  margin-right: 8px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #fff;
-  background: var(--micro);
-}
-
-#lecture-titre {
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-#lecture-progression {
-  width: 30%;
-  accent-color: var(--accent);
-}
-
-#lecture.en-direct #lecture-progression {
-  accent-color: var(--micro);
-}
-
-/* Fenêtre étroite : le titre passe sur sa propre ligne, le curseur prend la place restante. */
-@media (max-width: 480px) {
-  body {
-    padding-bottom: 120px;
-  }
-
-  #lecture {
-    flex-wrap: wrap;
-  }
-
-  #lecture-titre {
-    flex-basis: 100%;
-  }
-
-  #lecture-progression {
-    flex: 1;
-    width: auto;
-  }
 }

@@ -6,16 +6,10 @@ const favorisVide = document.querySelector("#favoris-vide");
 const sectionChercher = document.querySelector("#chercher");
 const etat = document.querySelector("#etat");
 const ecoute = new Audio();
-const boutonStop = document.querySelector("#lecture-stop");
-const boutonPause = document.querySelector("#lecture-pause");
-const boutonRejouer = document.querySelector("#lecture-rejouer");
-const barreTitre = document.querySelector("#lecture-titre");
-const progression = document.querySelector("#lecture-progression");
-const barre = document.querySelector("#lecture");
 
 const SOURCE = "myinstants";
 
-// Le son qui joue : `element` (ligne ou tuile) pour la surbrillance, `bouton` celui qui l'a lancé.
+// Le son qui joue : sa `boite` (surbrillance, remplissage) et le `bouton` qui l'a lancé.
 let lectureEnCours = null;
 let favoris = []; // [{ titre, url, fichier }]
 const sonsEnMemoire = new Map(); // fichier → adresse blob:, chargée au premier clic
@@ -53,6 +47,36 @@ for (const bouton of document.querySelectorAll("#onglets button")) {
   bouton.onclick = () => ouvrirOnglet(bouton.dataset.onglet);
 }
 
+// ---------- Box d'un son ----------
+
+// Une box : le titre, 🎧 (casque seulement) à gauche, 🎤 (micro + casque) à droite,
+// et un bouton en coin propre à l'onglet (＋ ou ✕), donné par `extra(boite)`.
+function boite(titre, url, extra) {
+  const li = document.createElement("li");
+  li.className = "boite";
+  li.dataset.titre = titre;
+  const nom = document.createElement("span");
+  nom.className = "boite-titre";
+  nom.textContent = titre;
+  li.append(nom, extra(li), boutonLecture(li, url, false), boutonLecture(li, url, true));
+  return li;
+}
+
+function boutonLecture(li, url, micro) {
+  const bouton = document.createElement("button");
+  bouton.className = micro ? "btn-micro" : "btn-ecoute";
+  bouton.dataset.icone = micro ? "🎤" : "🎧";
+  bouton.dataset.action = micro ? "Envoyer dans le micro" : "Écouter dans le casque";
+  remettreBouton(bouton, li);
+  bouton.onclick = () => (lectureEnCours?.bouton === bouton ? arreter() : jouer(li, bouton, url, micro));
+  return bouton;
+}
+
+function remettreBouton(bouton, li) {
+  bouton.textContent = bouton.dataset.icone;
+  bouton.setAttribute("aria-label", `${bouton.dataset.action} : ${li.dataset.titre}`);
+}
+
 // ---------- Favoris ----------
 
 async function chargerFavoris() {
@@ -61,36 +85,19 @@ async function chargerFavoris() {
   } catch (e) {
     etat.textContent = `Favoris illisibles : ${e}`;
   }
-  grille.replaceChildren(...favoris.map(tuile));
+  grille.replaceChildren(
+    ...favoris.map((f) => boite(f.titre, () => adresseFavori(f.fichier), (li) => boutonRetirer(f, li))),
+  );
   favorisVide.hidden = favoris.length > 0;
   for (const plus of liste.querySelectorAll(".btn-ajout")) marquerAjout(plus);
 }
 
-// Une tuile : un clic l'envoie dans le micro (ce sont des sons déjà choisis) ; 🎧 pour écouter seul.
-function tuile(favori) {
-  const div = document.createElement("div");
-  div.className = "tuile";
-  div.dataset.titre = favori.titre;
-  const src = () => adresseFavori(favori.fichier);
-
-  const envoyer = document.createElement("button");
-  envoyer.className = "tuile-envoyer";
-  envoyer.textContent = favori.titre;
-  envoyer.setAttribute("aria-label", `Envoyer ${favori.titre} dans le micro`);
-  envoyer.onclick = () => basculer(div, envoyer, src, true);
-
-  const ecouter = document.createElement("button");
-  ecouter.className = "tuile-ecouter btn-ecoute";
-  ecouter.dataset.icone = "🎧";
-  ecouter.dataset.action = "Écouter";
-  remettreBouton(ecouter, div);
-  ecouter.onclick = () => basculer(div, ecouter, src, false);
-
-  // Deux clics pour retirer : un seul clic de travers ne supprime rien.
+// Deux clics pour retirer : un seul clic de travers ne supprime rien.
+function boutonRetirer(favori, li) {
   const retirer = document.createElement("button");
-  retirer.className = "tuile-retirer";
+  retirer.className = "btn-coin btn-retirer";
   retirer.textContent = "✕";
-  retirer.setAttribute("aria-label", `Retirer ${favori.titre} des favoris`);
+  retirer.setAttribute("aria-label", `Retirer des favoris : ${favori.titre}`);
   retirer.onclick = async () => {
     if (!retirer.classList.contains("confirmer")) {
       retirer.classList.add("confirmer");
@@ -101,7 +108,7 @@ function tuile(favori) {
       }, 3000);
       return;
     }
-    if (lectureEnCours?.element === div) arreter();
+    if (lectureEnCours?.boite === li) arreter();
     try {
       await invoke("retirer_favori", { fichier: favori.fichier });
       URL.revokeObjectURL(sonsEnMemoire.get(favori.fichier));
@@ -111,15 +118,13 @@ function tuile(favori) {
     }
     chargerFavoris();
   };
-
-  div.append(envoyer, ecouter, retirer);
-  return div;
+  return retirer;
 }
 
 // ＋ dans la recherche : devient ✓ quand le son est déjà en favori.
 function boutonAjout(titre, url) {
   const plus = document.createElement("button");
-  plus.className = "btn-ajout";
+  plus.className = "btn-coin btn-ajout";
   plus.dataset.url = url;
   plus.dataset.titre = titre;
   marquerAjout(plus);
@@ -163,7 +168,7 @@ async function pageSuivante() {
     if (g !== generation) return;
     page += 1;
     if (sons.length === 0) finie = true;
-    for (const [titre, url] of sons) liste.append(ligne(titre, url));
+    for (const [titre, url] of sons) liste.append(boite(titre, url, () => boutonAjout(titre, url)));
     etat.textContent = finie && page === 1 ? "Aucun son trouvé." : "";
   } catch (e) {
     if (g !== generation) return;
@@ -173,27 +178,6 @@ async function pageSuivante() {
   enCours = false;
   // La liste ne remplit pas encore l'écran : on charge la suite (seulement si on la voit).
   if (!finie && !sectionChercher.hidden && document.body.scrollHeight <= innerHeight) pageSuivante();
-}
-
-// micro = false : ▶ dans le casque seulement ; true : 🎤 aussi dans le micro virtuel.
-function boutonLecture(li, url, micro) {
-  const bouton = document.createElement("button");
-  bouton.className = micro ? "btn-micro" : "btn-ecoute";
-  bouton.dataset.icone = micro ? "🎤" : "▶";
-  bouton.dataset.action = micro ? "Envoyer dans le micro" : "Écouter";
-  remettreBouton(bouton, li);
-  bouton.onclick = () => basculer(li, bouton, url, micro);
-  return bouton;
-}
-
-function ligne(titre, url) {
-  const li = document.createElement("li");
-  li.dataset.titre = titre;
-  const texte = document.createElement("span");
-  texte.className = "titre";
-  texte.textContent = titre;
-  li.append(boutonLecture(li, url, false), texte, boutonAjout(titre, url), boutonLecture(li, url, true));
-  return li;
 }
 
 function recommencer() {
@@ -217,28 +201,12 @@ addEventListener("scroll", () => {
 
 // ---------- Lecture ----------
 
-let dernier = null; // le dernier son joué, pour ↻ Rejouer
-
-// Sur le bouton en cours : il reprend si en pause, arrête sinon ; ailleurs, il lance le son.
-function basculer(element, bouton, url, micro) {
-  if (lectureEnCours?.bouton !== bouton) jouer(element, bouton, url, micro);
-  else if (ecoute.paused) ecoute.play();
-  else arreter();
-}
-
-// Les boutons à icône (▶ 🎤 🎧) affichent ■ pendant la lecture ; les tuiles gardent leur titre.
-function remettreBouton(bouton, element) {
-  if (!bouton.dataset.icone) return;
-  bouton.textContent = bouton.dataset.icone;
-  bouton.setAttribute("aria-label", `${bouton.dataset.action} ${element.dataset.titre}`);
-}
-
 // url : une adresse, ou une fonction qui la donne (favoris, lus en mémoire au premier clic).
-async function jouer(element, bouton, url, micro) {
+async function jouer(li, bouton, url, micro) {
   try {
     if (typeof url === "function") url = await url();
   } catch (e) {
-    etat.textContent = `Impossible de lire « ${element.dataset.titre} » : ${e}`;
+    etat.textContent = `Impossible de lire « ${li.dataset.titre} » : ${e}`;
     return;
   }
   try {
@@ -252,71 +220,36 @@ async function jouer(element, bouton, url, micro) {
   }
   // Après l'attente : si deux clics se croisent, le dernier arrivé nettoie l'affichage du premier.
   arreter();
-  dernier = { element, bouton, url, micro };
-  boutonRejouer.disabled = false;
-  lectureEnCours = { element, bouton };
-  element.classList.add("en-cours");
-  element.classList.toggle("en-direct", micro);
-  barre.classList.toggle("en-direct", micro);
-  afficherPause(false);
-  barreTitre.textContent = `${micro ? "🎤 Dans le micro" : "🎧 Écoute"} : ${element.dataset.titre}`;
-  progression.value = 0;
-  progression.disabled = false;
-  boutonStop.disabled = false;
-  boutonPause.disabled = false;
+  lectureEnCours = { boite: li, bouton };
+  li.classList.add("en-cours");
+  li.classList.toggle("en-direct", micro);
+  bouton.textContent = "■";
+  bouton.setAttribute("aria-label", `Arrêter : ${li.dataset.titre}`);
   ecoute.src = url;
   ecoute.play().catch(() => {}); // les erreurs de lecture passent par ecoute.onerror
 }
 
 function arreter() {
   ecoute.pause();
-  barreTitre.textContent = "Aucun son en cours";
-  progression.value = 0;
-  progression.disabled = true;
-  boutonStop.disabled = true;
-  boutonPause.disabled = true;
-  boutonPause.textContent = "⏸";
-  boutonPause.setAttribute("aria-label", "Pause");
-  barre.classList.remove("en-direct");
   if (!lectureEnCours) return;
-  const { element, bouton } = lectureEnCours;
-  element.classList.remove("en-cours", "en-direct");
-  element.style.removeProperty("--progression");
-  remettreBouton(bouton, element);
+  const { boite, bouton } = lectureEnCours;
+  boite.classList.remove("en-cours", "en-direct");
+  boite.style.removeProperty("--progression");
+  remettreBouton(bouton, boite);
   lectureEnCours = null;
 }
 
 ecoute.onended = arreter;
 ecoute.onerror = () => {
   if (!lectureEnCours) return;
-  etat.textContent = `Impossible de lire « ${lectureEnCours.element.dataset.titre} ».`;
+  etat.textContent = `Impossible de lire « ${lectureEnCours.boite.dataset.titre} ».`;
   arreter();
 };
+// La box se remplit pendant la lecture.
 ecoute.ontimeupdate = () => {
-  progression.value = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
-  // La tuile se remplit pendant la lecture.
-  lectureEnCours?.element.style.setProperty("--progression", `${progression.value * 100}%`);
+  const avance = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
+  lectureEnCours?.boite.style.setProperty("--progression", `${avance * 100}%`);
 };
-boutonStop.onclick = arreter;
-boutonRejouer.onclick = () => dernier && jouer(dernier.element, dernier.bouton, dernier.url, dernier.micro);
-// Clic ou glissement sur la barre : saute à ce moment du son.
-progression.oninput = () => {
-  if (ecoute.duration) ecoute.currentTime = progression.value * ecoute.duration;
-};
-
-function afficherPause(enPause) {
-  boutonPause.textContent = enPause ? "▶" : "⏸";
-  boutonPause.setAttribute("aria-label", enPause ? "Reprendre" : "Pause");
-  if (!lectureEnCours?.bouton.dataset.icone) return;
-  const { element, bouton } = lectureEnCours;
-  bouton.textContent = enPause ? bouton.dataset.icone : "■";
-  bouton.setAttribute("aria-label", `${enPause ? "Reprendre" : "Arrêter"} ${element.dataset.titre}`);
-}
-
-// Suit l'état réel du lecteur ; ignoré après arreter(), qui remet tout lui-même.
-ecoute.onplay = () => lectureEnCours && afficherPause(false);
-ecoute.onpause = () => lectureEnCours && afficherPause(true);
-boutonPause.onclick = () => (ecoute.paused ? ecoute.play() : ecoute.pause());
 
 // ---------- Démarrage ----------
 
