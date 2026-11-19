@@ -77,15 +77,34 @@ button:disabled {
   outline-offset: 2px;
 }
 
-/* Reste en haut pendant le défilement ; les marges négatives couvrent le padding du body. */
-#recherche {
+/* Onglets et recherche restent en haut ; les marges négatives couvrent le padding du body. */
+#entete {
   position: sticky;
   top: 0;
   z-index: 1;
+  display: grid;
+  gap: 12px;
   margin: -16px -16px 0;
-  padding: 16px;
+  padding: 12px 16px;
   background: var(--fond);
   border-bottom: 1px solid var(--bord);
+}
+
+#onglets {
+  display: flex;
+  gap: 8px;
+}
+
+#onglets button {
+  padding: 0 16px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+#onglets button[aria-pressed="true"] {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
 #mot {
@@ -166,6 +185,98 @@ button:disabled {
 #etat {
   color: var(--texte-doux);
   text-align: center;
+}
+
+#etat:empty {
+  display: none;
+}
+
+.btn-ajout {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.btn-ajout:disabled {
+  opacity: 1;
+  color: var(--texte-doux);
+}
+
+/* ---------- Favoris : des tuiles faciles à toucher sans viser ---------- */
+
+#favoris-vide {
+  margin-top: 48px;
+  text-align: center;
+  color: var(--texte-doux);
+}
+
+#grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* La tuile prend toute la hauteur de sa ligne : ses petits boutons restent dedans. */
+.tuile {
+  position: relative;
+  display: flex;
+  --progression: 0%;
+}
+
+.tuile-envoyer {
+  flex: 1;
+  height: auto;
+  min-height: 96px;
+  padding: 16px 12px 36px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  border: 2px solid var(--bord);
+  /* Pendant la lecture, la tuile se remplit de gauche à droite. */
+  background:
+    linear-gradient(to right, var(--remplissage, transparent) var(--progression), transparent var(--progression)),
+    var(--surface);
+}
+
+.tuile-envoyer:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--micro) 60%, var(--bord));
+  background:
+    linear-gradient(to right, var(--remplissage, transparent) var(--progression), transparent var(--progression)),
+    var(--surface-survol);
+}
+
+.tuile.en-cours .tuile-envoyer {
+  --remplissage: color-mix(in srgb, var(--ecoute) 30%, transparent);
+  border-color: var(--ecoute);
+}
+
+.tuile.en-cours.en-direct .tuile-envoyer {
+  --remplissage: color-mix(in srgb, var(--micro) 35%, transparent);
+  border-color: var(--micro);
+}
+
+.tuile-ecouter,
+.tuile-retirer {
+  position: absolute;
+  bottom: 6px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 0.8rem;
+}
+
+.tuile-ecouter {
+  left: 6px;
+}
+
+.tuile-retirer {
+  right: 6px;
+  color: var(--texte-doux);
+}
+
+.tuile-retirer.confirmer {
+  color: #fff;
+  background: var(--micro);
+  border-color: var(--micro);
 }
 
 #lecture {
