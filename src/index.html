@@ -8,11 +8,25 @@
     <script type="module" src="main.js" defer></script>
   </head>
   <body>
-    <form id="recherche">
-      <input id="mot" type="search" placeholder="Chercher un son sur myinstants…" aria-label="Chercher un son" autofocus />
-    </form>
-    <ul id="resultats"></ul>
+    <header id="entete">
+      <nav id="onglets" aria-label="Onglets">
+        <button data-onglet="favoris">⭐ Favoris</button>
+        <button data-onglet="chercher">🔍 Chercher</button>
+      </nav>
+      <form id="recherche" hidden>
+        <input id="mot" type="search" placeholder="Chercher un son sur myinstants…" aria-label="Chercher un son" />
+      </form>
+    </header>
     <p id="etat" role="status"></p>
+    <section id="favoris">
+      <p id="favoris-vide" hidden>
+        Aucun favori pour l'instant. Va dans <strong>🔍 Chercher</strong> et clique sur <strong>＋</strong> à côté d'un son.
+      </p>
+      <div id="grille"></div>
+    </section>
+    <section id="chercher" hidden>
+      <ul id="resultats"></ul>
+    </section>
     <footer id="lecture">
       <span id="lecture-titre" aria-live="polite">Aucun son en cours</span>
       <input id="lecture-progression" type="range" min="0" max="1" step="0.001" value="0" aria-label="Progression" disabled />

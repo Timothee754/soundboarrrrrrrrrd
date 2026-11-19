@@ -1,6 +1,8 @@
+mod favoris;
 mod micro_virtuel;
 mod sources;
 
+use favoris::{Favori, Favoris};
 use micro_virtuel::MicroVirtuel;
 use tauri::{Manager, RunEvent, State};
 
@@ -26,6 +28,28 @@ fn etat_micro(micro: State<Micro>) -> Result<(), String> {
 #[tauri::command]
 fn envoyer_au_micro(actif: bool, micro: State<Micro>) -> Result<(), String> {
     micro.as_ref().map_err(Clone::clone)?.envoyer_au_micro(actif)
+}
+
+#[tauri::command]
+fn favoris(favoris: State<Favoris>) -> Result<Vec<Favori>, String> {
+    favoris.lister()
+}
+
+#[tauri::command]
+async fn ajouter_favori(titre: String, url: String, favoris: State<'_, Favoris>) -> Result<Favori, String> {
+    favoris.ajouter(titre, url).await
+}
+
+/// Octets bruts (pas de JSON) : la fenêtre en fait un son lisible en mémoire. Les adresses
+/// `asset://` ne marchent pas pour l'audio sous Linux (GStreamer ne les connaît pas).
+#[tauri::command]
+fn lire_favori(fichier: String, favoris: State<Favoris>) -> Result<tauri::ipc::Response, String> {
+    favoris.lire_son(&fichier).map(tauri::ipc::Response::new)
+}
+
+#[tauri::command]
+fn retirer_favori(fichier: String, favoris: State<Favoris>) -> Result<(), String> {
+    favoris.retirer(&fichier)
 }
 
 /// Déconnexion, extinction ou Ctrl+C : même fermeture que la croix, pour remettre le vrai micro.
@@ -60,10 +84,20 @@ pub fn run() {
                 let _ = fenetre.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![lister, chercher, etat_micro, envoyer_au_micro])
+        .invoke_handler(tauri::generate_handler![
+            lister,
+            chercher,
+            etat_micro,
+            envoyer_au_micro,
+            favoris,
+            ajouter_favori,
+            lire_favori,
+            retirer_favori
+        ])
         .setup(|app| {
             let micro: Micro = MicroVirtuel::demarrer();
             app.manage(micro);
+            app.manage(Favoris::new(app.path().app_data_dir()?.join("sons")));
             fermer_proprement_sur_signal(app.handle().clone());
             // La fenêtre est créée après le micro : son premier son doit trouver la sortie virtuelle.
             tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
