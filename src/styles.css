@@ -161,6 +161,9 @@ button:disabled {
   border-radius: var(--rayon);
   background: #17131f;
   transition: box-shadow var(--duree);
+  /* Les box hors de l'écran ne sont pas dessinées : le défilement reste fluide sur de longues listes. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 150px;
 }
 
 .boite-haut {
@@ -174,15 +177,40 @@ button:disabled {
   border-bottom: 3px solid var(--c);
 }
 
-.boite-progression {
+.boite-barre {
   flex: 1;
   min-width: 0;
-  margin: 0;
-  accent-color: #fff;
+  height: 6px;
+  margin: 0 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.25);
+  opacity: 0.6;
 }
 
-.boite-progression:disabled {
-  opacity: 0.6;
+.boite-barre.active {
+  opacity: 1;
+  cursor: pointer;
+}
+
+/* Le remplissage et son rond blanc, comme le curseur de l'image. */
+.boite-barre-plein {
+  position: relative;
+  width: 0;
+  height: 100%;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.boite-barre-plein::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateY(-50%);
 }
 
 .boite-corps {
@@ -239,7 +267,6 @@ button:disabled {
   width: 26px;
   height: 26px;
   fill: currentColor;
-  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.35));
 }
 
 /* Un son qui joue : halo blanc ; dans le micro, halo rouge et badge « EN DIRECT ». */

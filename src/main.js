@@ -75,20 +75,36 @@ function boite(titre, url, cle, numero, extra) {
   haut.className = "boite-haut";
   const ecoule = document.createElement("span");
   ecoule.className = "t-ecoule";
-  const curseur = document.createElement("input");
-  curseur.className = "boite-progression";
-  curseur.type = "range";
-  curseur.min = 0;
-  curseur.max = 1;
-  curseur.step = 0.001;
-  curseur.setAttribute("aria-label", `Progression : ${titre}`);
+  // Une barre en CSS plutôt qu'un curseur natif : des centaines de curseurs ralentissent le défilement.
+  const barre = document.createElement("div");
+  barre.className = "boite-barre";
+  barre.setAttribute("role", "slider");
+  barre.setAttribute("aria-label", `Progression : ${titre}`);
+  barre.setAttribute("aria-valuemin", 0);
+  barre.setAttribute("aria-valuemax", 100);
+  const plein = document.createElement("div");
+  plein.className = "boite-barre-plein";
+  barre.append(plein);
   // Clic ou glissement : saute à ce moment du son (seulement celui qui joue).
-  curseur.oninput = () => {
-    if (lectureEnCours?.boite === li && ecoute.duration) ecoute.currentTime = curseur.value * ecoute.duration;
+  const sauter = (e) => {
+    if (lectureEnCours?.boite !== li || !ecoute.duration) return;
+    const zone = barre.getBoundingClientRect();
+    ecoute.currentTime = Math.min(Math.max((e.clientX - zone.left) / zone.width, 0), 1) * ecoute.duration;
+  };
+  barre.onpointerdown = (e) => {
+    barre.setPointerCapture(e.pointerId);
+    sauter(e);
+  };
+  barre.onpointermove = (e) => barre.hasPointerCapture(e.pointerId) && sauter(e);
+  // Au clavier : flèches gauche et droite = 1 seconde.
+  barre.onkeydown = (e) => {
+    if (lectureEnCours?.boite !== li) return;
+    if (e.key === "ArrowLeft") ecoute.currentTime -= 1;
+    if (e.key === "ArrowRight") ecoute.currentTime += 1;
   };
   const reste = document.createElement("span");
   reste.className = "t-reste";
-  haut.append(ecoule, curseur, reste);
+  haut.append(ecoule, barre, reste);
 
   const corps = document.createElement("div");
   corps.className = "boite-corps";
@@ -133,10 +149,14 @@ function afficherTemps(li, ecoule) {
   const duree = durees.get(li.dataset.cle);
   li.querySelector(".t-ecoule").textContent = ecoule.toFixed(1);
   li.querySelector(".t-reste").textContent = duree ? `-${Math.max(duree - ecoule, 0).toFixed(1)}` : "--.-";
-  const curseur = li.querySelector(".boite-progression");
-  curseur.value = duree ? ecoule / duree : 0;
-  curseur.disabled = lectureEnCours?.boite !== li;
-  li.querySelector(".btn-debut").disabled = lectureEnCours?.boite !== li;
+  const joue = lectureEnCours?.boite === li;
+  const pourcent = duree ? Math.min((ecoule / duree) * 100, 100) : 0;
+  const barre = li.querySelector(".boite-barre");
+  barre.firstChild.style.width = `${pourcent}%`;
+  barre.setAttribute("aria-valuenow", Math.round(pourcent));
+  barre.tabIndex = joue ? 0 : -1;
+  barre.classList.toggle("active", joue);
+  li.querySelector(".btn-debut").disabled = !joue;
 }
 
 // ---------- Favoris ----------
