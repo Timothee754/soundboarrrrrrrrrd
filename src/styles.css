@@ -147,39 +147,57 @@ button:disabled {
   padding: 0;
   margin: 16px 0 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
 }
 
-/* Titre et bouton de coin en haut ; 🎧 à gauche et 🎤 à droite en bas, loin l'un de l'autre. */
+/* --c : la couleur de la box. Haut foncé, trait plein, corps sombre, bas plein. */
 .boite {
-  --progression: 0%;
-  --remplissage: transparent;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-areas:
-    "titre titre coin"
-    "ecoute . micro";
-  align-items: start;
-  gap: 10px;
-  min-height: 96px;
-  padding: 10px;
-  border: 2px solid var(--bord);
+  --c: var(--accent);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid var(--c);
   border-radius: var(--rayon);
-  /* Pendant la lecture, la box se remplit de gauche à droite. */
-  background:
-    linear-gradient(to right, var(--remplissage) var(--progression), transparent var(--progression)),
-    var(--surface);
-  transition: border-color var(--duree);
+  background: #17131f;
+  transition: box-shadow var(--duree);
 }
 
-.boite:hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--bord));
+.boite-haut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: color-mix(in srgb, var(--c) 55%, #000);
+  border-bottom: 3px solid var(--c);
+}
+
+.boite-progression {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  accent-color: #fff;
+}
+
+.boite-progression:disabled {
+  opacity: 0.6;
+}
+
+.boite-corps {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 64px;
+  padding: 10px 12px;
+  color: #ece9f5;
 }
 
 .boite-titre {
-  grid-area: titre;
-  font-weight: 600;
+  flex: 1;
+  font-size: 1.05rem;
   overflow-wrap: anywhere;
   /* Au plus 3 lignes : les titres très longs finissent par « … ». */
   display: -webkit-box;
@@ -189,55 +207,70 @@ button:disabled {
 }
 
 .boite .btn-coin {
-  grid-area: coin;
   min-width: 28px;
   height: 28px;
   padding: 0 6px;
   font-size: 0.8rem;
+  color: #ece9f5;
+  background: transparent;
+  border-color: color-mix(in srgb, #fff 25%, transparent);
 }
 
-.boite .btn-ecoute {
-  grid-area: ecoute;
-  align-self: end;
+.boite-bas {
+  display: flex;
+  justify-content: space-around;
+  background: var(--c);
 }
 
-.boite .btn-micro {
-  grid-area: micro;
-  align-self: end;
+.boite-bas button {
+  flex: 1;
+  height: 40px;
+  color: #fff;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
-.btn-ecoute {
-  color: var(--ecoute);
-  border-color: color-mix(in srgb, var(--ecoute) 40%, transparent);
+.boite-bas button:hover:not(:disabled) {
+  background: color-mix(in srgb, #000 18%, transparent);
 }
 
-.btn-micro {
-  border-color: color-mix(in srgb, var(--micro) 50%, transparent);
-  background: color-mix(in srgb, var(--micro) 12%, var(--surface));
+.boite-bas svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.35));
 }
 
-.btn-micro:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--micro) 25%, var(--surface));
-}
-
+/* Un son qui joue : halo blanc ; dans le micro, halo rouge et badge « EN DIRECT ». */
 .boite.en-cours {
-  --remplissage: color-mix(in srgb, var(--ecoute) 30%, transparent);
-  border-color: var(--ecoute);
+  box-shadow: 0 0 0 3px #fff;
 }
 
 .boite.en-cours.en-direct {
-  --remplissage: color-mix(in srgb, var(--micro) 35%, transparent);
-  border-color: var(--micro);
+  box-shadow: 0 0 0 3px var(--micro);
 }
 
-.btn-ajout {
+.boite.en-direct .boite-titre::before {
+  content: "EN DIRECT";
+  display: block;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
   font-weight: 700;
-  color: var(--accent);
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: var(--micro);
 }
 
-.btn-ajout:disabled {
-  opacity: 1;
-  color: var(--texte-doux);
+.boite .btn-ajout {
+  font-weight: 700;
+}
+
+.boite .btn-ajout:disabled {
+  opacity: 0.6;
 }
 
 .btn-retirer {

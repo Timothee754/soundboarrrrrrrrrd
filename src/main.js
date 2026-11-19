@@ -49,23 +49,74 @@ for (const bouton of document.querySelectorAll("#onglets button")) {
 
 // ---------- Box d'un son ----------
 
-// Une box : le titre, 🎧 (casque seulement) à gauche, 🎤 (micro + casque) à droite,
-// et un bouton en coin propre à l'onglet (＋ ou ✕), donné par `extra(boite)`.
-function boite(titre, url, extra) {
+// Jolies couleurs vives dans un ordre mélangé, reprises en boucle de box en box.
+const COULEURS = ["#14b8a6", "#ec4899", "#f59e0b", "#3b82f6", "#f97316", "#22c55e", "#8b5cf6", "#ef4444", "#06b6d4", "#d946ef"];
+
+const ICONES = {
+  debut: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62A7.95 7.95 0 0 1 12.5 10.5c3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>',
+  micro: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
+  casque: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-9 9v7a2 2 0 0 0 2 2h3v-8H5v-1a7 7 0 0 1 14 0v1h-3v8h3a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>',
+};
+
+const durees = new Map(); // clé du son → durée en secondes, connue après le premier play
+
+// Une box, au design des pads : en haut la progression (écoulé, curseur, restant), le titre
+// et un bouton en coin propre à l'onglet (＋ ou ✕, donné par `extra`), en bas ↶ ▶ 🎧.
+// ▶ envoie dans le micro (et le casque) ; 🎧 joue dans le casque seulement.
+function boite(titre, url, cle, numero, extra) {
   const li = document.createElement("li");
   li.className = "boite";
   li.dataset.titre = titre;
+  li.dataset.cle = cle;
+  li.style.setProperty("--c", COULEURS[numero % COULEURS.length]);
+
+  const haut = document.createElement("div");
+  haut.className = "boite-haut";
+  const ecoule = document.createElement("span");
+  ecoule.className = "t-ecoule";
+  const curseur = document.createElement("input");
+  curseur.className = "boite-progression";
+  curseur.type = "range";
+  curseur.min = 0;
+  curseur.max = 1;
+  curseur.step = 0.001;
+  curseur.setAttribute("aria-label", `Progression : ${titre}`);
+  // Clic ou glissement : saute à ce moment du son (seulement celui qui joue).
+  curseur.oninput = () => {
+    if (lectureEnCours?.boite === li && ecoute.duration) ecoute.currentTime = curseur.value * ecoute.duration;
+  };
+  const reste = document.createElement("span");
+  reste.className = "t-reste";
+  haut.append(ecoule, curseur, reste);
+
+  const corps = document.createElement("div");
+  corps.className = "boite-corps";
   const nom = document.createElement("span");
   nom.className = "boite-titre";
   nom.textContent = titre;
-  li.append(nom, extra(li), boutonLecture(li, url, false), boutonLecture(li, url, true));
+  corps.append(nom, extra(li));
+
+  const bas = document.createElement("div");
+  bas.className = "boite-bas";
+  const debut = document.createElement("button");
+  debut.className = "btn-debut";
+  debut.innerHTML = ICONES.debut;
+  debut.setAttribute("aria-label", `Revenir au début : ${titre}`);
+  debut.onclick = () => {
+    if (lectureEnCours?.boite === li) ecoute.currentTime = 0;
+  };
+  bas.append(debut, boutonLecture(li, url, true), boutonLecture(li, url, false));
+
+  li.append(haut, corps, bas);
+  afficherTemps(li, 0);
   return li;
 }
 
 function boutonLecture(li, url, micro) {
   const bouton = document.createElement("button");
-  bouton.className = micro ? "btn-micro" : "btn-ecoute";
-  bouton.dataset.icone = micro ? "🎤" : "🎧";
+  bouton.className = micro ? "btn-micro" : "btn-casque";
+  bouton.dataset.icone = micro ? "micro" : "casque";
   bouton.dataset.action = micro ? "Envoyer dans le micro" : "Écouter dans le casque";
   remettreBouton(bouton, li);
   bouton.onclick = () => (lectureEnCours?.bouton === bouton ? arreter() : jouer(li, bouton, url, micro));
@@ -73,8 +124,19 @@ function boutonLecture(li, url, micro) {
 }
 
 function remettreBouton(bouton, li) {
-  bouton.textContent = bouton.dataset.icone;
+  bouton.innerHTML = ICONES[bouton.dataset.icone];
   bouton.setAttribute("aria-label", `${bouton.dataset.action} : ${li.dataset.titre}`);
+}
+
+// Temps écoulé à gauche, restant à droite (« --.- » tant que la durée est inconnue).
+function afficherTemps(li, ecoule) {
+  const duree = durees.get(li.dataset.cle);
+  li.querySelector(".t-ecoule").textContent = ecoule.toFixed(1);
+  li.querySelector(".t-reste").textContent = duree ? `-${Math.max(duree - ecoule, 0).toFixed(1)}` : "--.-";
+  const curseur = li.querySelector(".boite-progression");
+  curseur.value = duree ? ecoule / duree : 0;
+  curseur.disabled = lectureEnCours?.boite !== li;
+  li.querySelector(".btn-debut").disabled = lectureEnCours?.boite !== li;
 }
 
 // ---------- Favoris ----------
@@ -86,7 +148,7 @@ async function chargerFavoris() {
     etat.textContent = `Favoris illisibles : ${e}`;
   }
   grille.replaceChildren(
-    ...favoris.map((f) => boite(f.titre, () => adresseFavori(f.fichier), (li) => boutonRetirer(f, li))),
+    ...favoris.map((f, i) => boite(f.titre, () => adresseFavori(f.fichier), `fav:${f.fichier}`, i, (li) => boutonRetirer(f, li))),
   );
   favorisVide.hidden = favoris.length > 0;
   for (const plus of liste.querySelectorAll(".btn-ajout")) marquerAjout(plus);
@@ -168,7 +230,9 @@ async function pageSuivante() {
     if (g !== generation) return;
     page += 1;
     if (sons.length === 0) finie = true;
-    for (const [titre, url] of sons) liste.append(boite(titre, url, () => boutonAjout(titre, url)));
+    for (const [titre, url] of sons) {
+      liste.append(boite(titre, url, url, liste.children.length, () => boutonAjout(titre, url)));
+    }
     etat.textContent = finie && page === 1 ? "Aucun son trouvé." : "";
   } catch (e) {
     if (g !== generation) return;
@@ -223,8 +287,9 @@ async function jouer(li, bouton, url, micro) {
   lectureEnCours = { boite: li, bouton };
   li.classList.add("en-cours");
   li.classList.toggle("en-direct", micro);
-  bouton.textContent = "■";
+  bouton.innerHTML = ICONES.stop;
   bouton.setAttribute("aria-label", `Arrêter : ${li.dataset.titre}`);
+  afficherTemps(li, 0);
   ecoute.src = url;
   ecoute.play().catch(() => {}); // les erreurs de lecture passent par ecoute.onerror
 }
@@ -234,9 +299,9 @@ function arreter() {
   if (!lectureEnCours) return;
   const { boite, bouton } = lectureEnCours;
   boite.classList.remove("en-cours", "en-direct");
-  boite.style.removeProperty("--progression");
   remettreBouton(bouton, boite);
   lectureEnCours = null;
+  afficherTemps(boite, 0);
 }
 
 ecoute.onended = arreter;
@@ -245,11 +310,11 @@ ecoute.onerror = () => {
   etat.textContent = `Impossible de lire « ${lectureEnCours.boite.dataset.titre} ».`;
   arreter();
 };
-// La box se remplit pendant la lecture.
-ecoute.ontimeupdate = () => {
-  const avance = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
-  lectureEnCours?.boite.style.setProperty("--progression", `${avance * 100}%`);
+// La durée est retenue pour l'afficher aussi quand le son ne joue plus.
+ecoute.onloadedmetadata = () => {
+  if (lectureEnCours && Number.isFinite(ecoute.duration)) durees.set(lectureEnCours.boite.dataset.cle, ecoute.duration);
 };
+ecoute.ontimeupdate = () => lectureEnCours && afficherTemps(lectureEnCours.boite, ecoute.currentTime);
 
 // ---------- Démarrage ----------
 
