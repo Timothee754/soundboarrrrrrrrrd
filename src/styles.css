@@ -39,7 +39,7 @@
 
 body {
   margin: 0;
-  padding: 16px 16px 80px; /* place pour la barre de lecture */
+  padding: 16px;
   background: var(--fond);
   color: var(--texte);
 }
@@ -125,63 +125,6 @@ button:disabled {
   border-color: var(--accent);
 }
 
-#resultats {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-  display: grid;
-  gap: 6px;
-}
-
-#resultats li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
-  background: var(--surface);
-  border: 1px solid transparent;
-  border-radius: var(--rayon);
-  transition:
-    background var(--duree),
-    border-color var(--duree);
-}
-
-#resultats li:hover {
-  background: var(--surface-survol);
-}
-
-.titre {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* ▶ à gauche, 🎤 tout à droite : loin l'un de l'autre pour ne pas envoyer un son par erreur. */
-.btn-ecoute {
-  color: var(--ecoute);
-  border-color: color-mix(in srgb, var(--ecoute) 40%, transparent);
-}
-
-.btn-micro {
-  border-color: color-mix(in srgb, var(--micro) 50%, transparent);
-  background: color-mix(in srgb, var(--micro) 12%, var(--surface));
-}
-
-.btn-micro:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--micro) 25%, var(--surface));
-}
-
-#resultats li.en-cours {
-  font-weight: 600;
-  border-color: var(--ecoute);
-  background: color-mix(in srgb, var(--ecoute) 15%, var(--surface));
-}
-
-#resultats li.en-cours.en-direct {
-  border-color: var(--micro);
-  background: color-mix(in srgb, var(--micro) 15%, var(--surface));
-}
-
 #etat {
   color: var(--texte-doux);
   text-align: center;
@@ -191,17 +134,19 @@ button:disabled {
   display: none;
 }
 
-.btn-ajout {
-  font-weight: 700;
-  color: var(--accent);
+#pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0 8px;
+  font-variant-numeric: tabular-nums;
 }
 
-.btn-ajout:disabled {
-  opacity: 1;
-  color: var(--texte-doux);
+#pagination button {
+  padding: 0 16px;
+  font-weight: 600;
 }
-
-/* ---------- Favoris : des tuiles faciles à toucher sans viser ---------- */
 
 #favoris-vide {
   margin-top: 48px;
@@ -209,138 +154,172 @@ button:disabled {
   color: var(--texte-doux);
 }
 
-#grille {
+/* ---------- Box : plusieurs sons par ligne, autant que la largeur le permet ---------- */
+
+.boites {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
 }
 
-/* La tuile prend toute la hauteur de sa ligne : ses petits boutons restent dedans. */
-.tuile {
-  position: relative;
+/* --c : la couleur de la box. Haut foncé, trait plein, corps sombre, bas plein. */
+.boite {
+  --c: var(--accent);
   display: flex;
-  --progression: 0%;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid var(--c);
+  border-radius: var(--rayon);
+  background: #17131f;
+  transition: box-shadow var(--duree);
+  /* Les box hors de l'écran ne sont pas dessinées : le défilement reste fluide sur de longues listes. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 150px;
 }
 
-.tuile-envoyer {
+.boite-haut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: color-mix(in srgb, var(--c) 55%, #000);
+  border-bottom: 3px solid var(--c);
+}
+
+.boite-barre {
   flex: 1;
-  height: auto;
-  min-height: 96px;
-  padding: 16px 12px 36px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-  border: 2px solid var(--bord);
-  /* Pendant la lecture, la tuile se remplit de gauche à droite. */
-  background:
-    linear-gradient(to right, var(--remplissage, transparent) var(--progression), transparent var(--progression)),
-    var(--surface);
+  min-width: 0;
+  height: 6px;
+  margin: 0 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.25);
+  opacity: 0.6;
 }
 
-.tuile-envoyer:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--micro) 60%, var(--bord));
-  background:
-    linear-gradient(to right, var(--remplissage, transparent) var(--progression), transparent var(--progression)),
-    var(--surface-survol);
+.boite-barre.active {
+  opacity: 1;
+  cursor: pointer;
 }
 
-.tuile.en-cours .tuile-envoyer {
-  --remplissage: color-mix(in srgb, var(--ecoute) 30%, transparent);
-  border-color: var(--ecoute);
+/* Le remplissage et son rond blanc, comme le curseur de l'image. */
+.boite-barre-plein {
+  position: relative;
+  width: 0;
+  height: 100%;
+  border-radius: 3px;
+  background: #fff;
 }
 
-.tuile.en-cours.en-direct .tuile-envoyer {
-  --remplissage: color-mix(in srgb, var(--micro) 35%, transparent);
-  border-color: var(--micro);
-}
-
-.tuile-ecouter,
-.tuile-retirer {
+.boite-barre-plein::after {
+  content: "";
   position: absolute;
-  bottom: 6px;
+  top: 50%;
+  right: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateY(-50%);
+}
+
+.boite-corps {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 64px;
+  padding: 10px 12px;
+  color: #ece9f5;
+}
+
+.boite-titre {
+  flex: 1;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+  /* Au plus 3 lignes : les titres très longs finissent par « … ». */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.boite .btn-coin {
   min-width: 28px;
   height: 28px;
   padding: 0 6px;
   font-size: 0.8rem;
+  color: #ece9f5;
+  background: transparent;
+  border-color: color-mix(in srgb, #fff 25%, transparent);
 }
 
-.tuile-ecouter {
-  left: 6px;
-}
-
-.tuile-retirer {
-  right: 6px;
-  color: var(--texte-doux);
-}
-
-.tuile-retirer.confirmer {
-  color: #fff;
-  background: var(--micro);
-  border-color: var(--micro);
-}
-
-#lecture {
-  position: fixed;
-  inset: auto 0 0 0;
+.boite-bas {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  z-index: 1;
-  background: var(--surface);
-  border-top: 2px solid var(--bord);
-  transition: border-color var(--duree);
+  justify-content: space-around;
+  background: var(--c);
 }
 
-/* Un son part dans le micro : la barre le montre comme le voyant « à l'antenne » d'une radio. */
-#lecture.en-direct {
-  border-top-color: var(--micro);
+.boite-bas button {
+  flex: 1;
+  height: 40px;
+  color: #fff;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
-#lecture.en-direct #lecture-titre::before {
+.boite-bas button:hover:not(:disabled) {
+  background: color-mix(in srgb, #000 18%, transparent);
+}
+
+.boite-bas svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+
+/* Un son qui joue : halo blanc ; dans le micro, halo rouge et badge « EN DIRECT ». */
+.boite.en-cours {
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.boite.en-cours.en-direct {
+  box-shadow: 0 0 0 3px var(--micro);
+}
+
+.boite.en-direct .boite-titre::before {
   content: "EN DIRECT";
-  margin-right: 8px;
-  padding: 2px 6px;
+  display: block;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 1px 6px;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: #fff;
   background: var(--micro);
 }
 
-#lecture-titre {
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+.boite .btn-ajout {
+  font-weight: 700;
 }
 
-#lecture-progression {
-  width: 30%;
-  accent-color: var(--accent);
+.boite .btn-ajout:disabled {
+  opacity: 0.6;
 }
 
-#lecture.en-direct #lecture-progression {
-  accent-color: var(--micro);
+.btn-retirer {
+  color: var(--texte-doux);
 }
 
-/* Fenêtre étroite : le titre passe sur sa propre ligne, le curseur prend la place restante. */
-@media (max-width: 480px) {
-  body {
-    padding-bottom: 120px;
-  }
-
-  #lecture {
-    flex-wrap: wrap;
-  }
-
-  #lecture-titre {
-    flex-basis: 100%;
-  }
-
-  #lecture-progression {
-    flex: 1;
-    width: auto;
-  }
+.btn-retirer.confirmer {
+  color: #fff;
+  background: var(--micro);
+  border-color: var(--micro);
 }

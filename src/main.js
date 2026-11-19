@@ -6,16 +6,10 @@ const favorisVide = document.querySelector("#favoris-vide");
 const sectionChercher = document.querySelector("#chercher");
 const etat = document.querySelector("#etat");
 const ecoute = new Audio();
-const boutonStop = document.querySelector("#lecture-stop");
-const boutonPause = document.querySelector("#lecture-pause");
-const boutonRejouer = document.querySelector("#lecture-rejouer");
-const barreTitre = document.querySelector("#lecture-titre");
-const progression = document.querySelector("#lecture-progression");
-const barre = document.querySelector("#lecture");
 
 const SOURCE = "myinstants";
 
-// Le son qui joue : `element` (ligne ou tuile) pour la surbrillance, `bouton` celui qui l'a lancé.
+// Le son qui joue : sa `boite` (surbrillance, remplissage) et le `bouton` qui l'a lancé.
 let lectureEnCours = null;
 let favoris = []; // [{ titre, url, fichier }]
 const sonsEnMemoire = new Map(); // fichier → adresse blob:, chargée au premier clic
@@ -43,7 +37,7 @@ function ouvrirOnglet(nom) {
   if (nom === "chercher") {
     if (!rechercheLancee) {
       rechercheLancee = true;
-      recommencer();
+      afficherPage(1);
     }
     document.querySelector("#mot").focus();
   }
@@ -51,6 +45,118 @@ function ouvrirOnglet(nom) {
 
 for (const bouton of document.querySelectorAll("#onglets button")) {
   bouton.onclick = () => ouvrirOnglet(bouton.dataset.onglet);
+}
+
+// ---------- Box d'un son ----------
+
+// Jolies couleurs vives dans un ordre mélangé, reprises en boucle de box en box.
+const COULEURS = ["#14b8a6", "#ec4899", "#f59e0b", "#3b82f6", "#f97316", "#22c55e", "#8b5cf6", "#ef4444", "#06b6d4", "#d946ef"];
+
+const ICONES = {
+  debut: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62A7.95 7.95 0 0 1 12.5 10.5c3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>',
+  micro: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
+  casque: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-9 9v7a2 2 0 0 0 2 2h3v-8H5v-1a7 7 0 0 1 14 0v1h-3v8h3a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>',
+};
+
+const durees = new Map(); // clé du son → durée en secondes, connue après le premier play
+
+// Une box, au design des pads : en haut la progression (écoulé, curseur, restant), le titre
+// et un bouton en coin propre à l'onglet (＋ ou ✕, donné par `extra`), en bas ↶ ▶ 🎧.
+// ▶ envoie dans le micro (et le casque) ; 🎧 joue dans le casque seulement.
+function boite(titre, url, cle, numero, extra) {
+  const li = document.createElement("li");
+  li.className = "boite";
+  li.dataset.titre = titre;
+  li.dataset.cle = cle;
+  li.style.setProperty("--c", COULEURS[numero % COULEURS.length]);
+
+  const haut = document.createElement("div");
+  haut.className = "boite-haut";
+  const ecoule = document.createElement("span");
+  ecoule.className = "t-ecoule";
+  // Une barre en CSS plutôt qu'un curseur natif : des centaines de curseurs ralentissent le défilement.
+  const barre = document.createElement("div");
+  barre.className = "boite-barre";
+  barre.setAttribute("role", "slider");
+  barre.setAttribute("aria-label", `Progression : ${titre}`);
+  barre.setAttribute("aria-valuemin", 0);
+  barre.setAttribute("aria-valuemax", 100);
+  const plein = document.createElement("div");
+  plein.className = "boite-barre-plein";
+  barre.append(plein);
+  // Clic ou glissement : saute à ce moment du son (seulement celui qui joue).
+  const sauter = (e) => {
+    if (lectureEnCours?.boite !== li || !ecoute.duration) return;
+    const zone = barre.getBoundingClientRect();
+    ecoute.currentTime = Math.min(Math.max((e.clientX - zone.left) / zone.width, 0), 1) * ecoute.duration;
+  };
+  barre.onpointerdown = (e) => {
+    barre.setPointerCapture(e.pointerId);
+    sauter(e);
+  };
+  barre.onpointermove = (e) => barre.hasPointerCapture(e.pointerId) && sauter(e);
+  // Au clavier : flèches gauche et droite = 1 seconde.
+  barre.onkeydown = (e) => {
+    if (lectureEnCours?.boite !== li) return;
+    if (e.key === "ArrowLeft") ecoute.currentTime -= 1;
+    if (e.key === "ArrowRight") ecoute.currentTime += 1;
+  };
+  const reste = document.createElement("span");
+  reste.className = "t-reste";
+  haut.append(ecoule, barre, reste);
+
+  const corps = document.createElement("div");
+  corps.className = "boite-corps";
+  const nom = document.createElement("span");
+  nom.className = "boite-titre";
+  nom.textContent = titre;
+  corps.append(nom, extra(li));
+
+  const bas = document.createElement("div");
+  bas.className = "boite-bas";
+  const debut = document.createElement("button");
+  debut.className = "btn-debut";
+  debut.innerHTML = ICONES.debut;
+  debut.setAttribute("aria-label", `Revenir au début : ${titre}`);
+  debut.onclick = () => {
+    if (lectureEnCours?.boite === li) ecoute.currentTime = 0;
+  };
+  bas.append(debut, boutonLecture(li, url, true), boutonLecture(li, url, false));
+
+  li.append(haut, corps, bas);
+  afficherTemps(li, 0);
+  return li;
+}
+
+function boutonLecture(li, url, micro) {
+  const bouton = document.createElement("button");
+  bouton.className = micro ? "btn-micro" : "btn-casque";
+  bouton.dataset.icone = micro ? "micro" : "casque";
+  bouton.dataset.action = micro ? "Envoyer dans le micro" : "Écouter dans le casque";
+  remettreBouton(bouton, li);
+  bouton.onclick = () => (lectureEnCours?.bouton === bouton ? arreter() : jouer(li, bouton, url, micro));
+  return bouton;
+}
+
+function remettreBouton(bouton, li) {
+  bouton.innerHTML = ICONES[bouton.dataset.icone];
+  bouton.setAttribute("aria-label", `${bouton.dataset.action} : ${li.dataset.titre}`);
+}
+
+// Temps écoulé à gauche, restant à droite (« --.- » tant que la durée est inconnue).
+function afficherTemps(li, ecoule) {
+  const duree = durees.get(li.dataset.cle);
+  li.querySelector(".t-ecoule").textContent = ecoule.toFixed(1);
+  li.querySelector(".t-reste").textContent = duree ? `-${Math.max(duree - ecoule, 0).toFixed(1)}` : "--.-";
+  const joue = lectureEnCours?.boite === li;
+  const pourcent = duree ? Math.min((ecoule / duree) * 100, 100) : 0;
+  const barre = li.querySelector(".boite-barre");
+  barre.firstChild.style.width = `${pourcent}%`;
+  barre.setAttribute("aria-valuenow", Math.round(pourcent));
+  barre.tabIndex = joue ? 0 : -1;
+  barre.classList.toggle("active", joue);
+  li.querySelector(".btn-debut").disabled = !joue;
 }
 
 // ---------- Favoris ----------
@@ -61,36 +167,19 @@ async function chargerFavoris() {
   } catch (e) {
     etat.textContent = `Favoris illisibles : ${e}`;
   }
-  grille.replaceChildren(...favoris.map(tuile));
+  grille.replaceChildren(
+    ...favoris.map((f, i) => boite(f.titre, () => adresseFavori(f.fichier), `fav:${f.fichier}`, i, (li) => boutonRetirer(f, li))),
+  );
   favorisVide.hidden = favoris.length > 0;
   for (const plus of liste.querySelectorAll(".btn-ajout")) marquerAjout(plus);
 }
 
-// Une tuile : un clic l'envoie dans le micro (ce sont des sons déjà choisis) ; 🎧 pour écouter seul.
-function tuile(favori) {
-  const div = document.createElement("div");
-  div.className = "tuile";
-  div.dataset.titre = favori.titre;
-  const src = () => adresseFavori(favori.fichier);
-
-  const envoyer = document.createElement("button");
-  envoyer.className = "tuile-envoyer";
-  envoyer.textContent = favori.titre;
-  envoyer.setAttribute("aria-label", `Envoyer ${favori.titre} dans le micro`);
-  envoyer.onclick = () => basculer(div, envoyer, src, true);
-
-  const ecouter = document.createElement("button");
-  ecouter.className = "tuile-ecouter btn-ecoute";
-  ecouter.dataset.icone = "🎧";
-  ecouter.dataset.action = "Écouter";
-  remettreBouton(ecouter, div);
-  ecouter.onclick = () => basculer(div, ecouter, src, false);
-
-  // Deux clics pour retirer : un seul clic de travers ne supprime rien.
+// Deux clics pour retirer : un seul clic de travers ne supprime rien.
+function boutonRetirer(favori, li) {
   const retirer = document.createElement("button");
-  retirer.className = "tuile-retirer";
+  retirer.className = "btn-coin btn-retirer";
   retirer.textContent = "✕";
-  retirer.setAttribute("aria-label", `Retirer ${favori.titre} des favoris`);
+  retirer.setAttribute("aria-label", `Retirer des favoris : ${favori.titre}`);
   retirer.onclick = async () => {
     if (!retirer.classList.contains("confirmer")) {
       retirer.classList.add("confirmer");
@@ -101,7 +190,7 @@ function tuile(favori) {
       }, 3000);
       return;
     }
-    if (lectureEnCours?.element === div) arreter();
+    if (lectureEnCours?.boite === li) arreter();
     try {
       await invoke("retirer_favori", { fichier: favori.fichier });
       URL.revokeObjectURL(sonsEnMemoire.get(favori.fichier));
@@ -111,15 +200,13 @@ function tuile(favori) {
     }
     chargerFavoris();
   };
-
-  div.append(envoyer, ecouter, retirer);
-  return div;
+  return retirer;
 }
 
 // ＋ dans la recherche : devient ✓ quand le son est déjà en favori.
 function boutonAjout(titre, url) {
   const plus = document.createElement("button");
-  plus.className = "btn-ajout";
+  plus.className = "btn-coin btn-ajout";
   plus.dataset.url = url;
   plus.dataset.titre = titre;
   marquerAjout(plus);
@@ -143,102 +230,57 @@ function marquerAjout(plus) {
   plus.setAttribute("aria-label", `${deja ? "Déjà dans les favoris" : "Ajouter aux favoris"} : ${plus.dataset.titre}`);
 }
 
-// ---------- Recherche ----------
+// ---------- Recherche : une seule page affichée à la fois ----------
+
+const precedente = document.querySelector("#page-precedente");
+const suivante = document.querySelector("#page-suivante");
+const numeroPage = document.querySelector("#page-numero");
 
 let mot = "";
-let page = 0;
-let finie = false;
-let enCours = false;
-let generation = 0; // change à chaque nouvelle recherche, pour jeter les réponses périmées
+let page = 1;
+let generation = 0; // change à chaque chargement, pour jeter les réponses périmées
 
-async function pageSuivante() {
-  if (enCours || finie) return;
-  enCours = true;
-  const g = generation;
+async function afficherPage(n) {
+  const g = ++generation;
+  page = n;
+  liste.replaceChildren();
+  numeroPage.textContent = `Page ${n}`;
+  precedente.disabled = true;
+  suivante.disabled = true;
   etat.textContent = "Chargement…";
   try {
     const sons = mot
-      ? await invoke("chercher", { source: SOURCE, mot, page: page + 1 })
-      : await invoke("lister", { source: SOURCE, page: page + 1 });
+      ? await invoke("chercher", { source: SOURCE, mot, page: n })
+      : await invoke("lister", { source: SOURCE, page: n });
     if (g !== generation) return;
-    page += 1;
-    if (sons.length === 0) finie = true;
-    for (const [titre, url] of sons) liste.append(ligne(titre, url));
-    etat.textContent = finie && page === 1 ? "Aucun son trouvé." : "";
+    sons.forEach(([titre, url], i) => liste.append(boite(titre, url, url, i, () => boutonAjout(titre, url))));
+    etat.textContent = sons.length ? "" : n === 1 ? "Aucun son trouvé." : "Plus aucun son.";
+    suivante.disabled = sons.length === 0;
   } catch (e) {
     if (g !== generation) return;
-    finie = true;
     etat.textContent = `Erreur : ${e}`;
   }
-  enCours = false;
-  // La liste ne remplit pas encore l'écran : on charge la suite (seulement si on la voit).
-  if (!finie && !sectionChercher.hidden && document.body.scrollHeight <= innerHeight) pageSuivante();
+  precedente.disabled = n === 1;
+  scrollTo(0, 0);
 }
 
-// micro = false : ▶ dans le casque seulement ; true : 🎤 aussi dans le micro virtuel.
-function boutonLecture(li, url, micro) {
-  const bouton = document.createElement("button");
-  bouton.className = micro ? "btn-micro" : "btn-ecoute";
-  bouton.dataset.icone = micro ? "🎤" : "▶";
-  bouton.dataset.action = micro ? "Envoyer dans le micro" : "Écouter";
-  remettreBouton(bouton, li);
-  bouton.onclick = () => basculer(li, bouton, url, micro);
-  return bouton;
-}
-
-function ligne(titre, url) {
-  const li = document.createElement("li");
-  li.dataset.titre = titre;
-  const texte = document.createElement("span");
-  texte.className = "titre";
-  texte.textContent = titre;
-  li.append(boutonLecture(li, url, false), texte, boutonAjout(titre, url), boutonLecture(li, url, true));
-  return li;
-}
-
-function recommencer() {
-  generation += 1;
-  enCours = false;
-  liste.replaceChildren();
-  page = 0;
-  finie = false;
-  pageSuivante();
-}
+precedente.onclick = () => afficherPage(page - 1);
+suivante.onclick = () => afficherPage(page + 1);
 
 document.querySelector("#recherche").onsubmit = (e) => {
   e.preventDefault();
   mot = document.querySelector("#mot").value.trim();
-  recommencer();
+  afficherPage(1);
 };
-
-addEventListener("scroll", () => {
-  if (!sectionChercher.hidden && innerHeight + scrollY >= document.body.scrollHeight - 200) pageSuivante();
-});
 
 // ---------- Lecture ----------
 
-let dernier = null; // le dernier son joué, pour ↻ Rejouer
-
-// Sur le bouton en cours : il reprend si en pause, arrête sinon ; ailleurs, il lance le son.
-function basculer(element, bouton, url, micro) {
-  if (lectureEnCours?.bouton !== bouton) jouer(element, bouton, url, micro);
-  else if (ecoute.paused) ecoute.play();
-  else arreter();
-}
-
-// Les boutons à icône (▶ 🎤 🎧) affichent ■ pendant la lecture ; les tuiles gardent leur titre.
-function remettreBouton(bouton, element) {
-  if (!bouton.dataset.icone) return;
-  bouton.textContent = bouton.dataset.icone;
-  bouton.setAttribute("aria-label", `${bouton.dataset.action} ${element.dataset.titre}`);
-}
-
 // url : une adresse, ou une fonction qui la donne (favoris, lus en mémoire au premier clic).
-async function jouer(element, bouton, url, micro) {
+async function jouer(li, bouton, url, micro) {
   try {
     if (typeof url === "function") url = await url();
   } catch (e) {
-    etat.textContent = `Impossible de lire « ${element.dataset.titre} » : ${e}`;
+    etat.textContent = `Impossible de lire « ${li.dataset.titre} » : ${e}`;
     return;
   }
   try {
@@ -252,71 +294,37 @@ async function jouer(element, bouton, url, micro) {
   }
   // Après l'attente : si deux clics se croisent, le dernier arrivé nettoie l'affichage du premier.
   arreter();
-  dernier = { element, bouton, url, micro };
-  boutonRejouer.disabled = false;
-  lectureEnCours = { element, bouton };
-  element.classList.add("en-cours");
-  element.classList.toggle("en-direct", micro);
-  barre.classList.toggle("en-direct", micro);
-  afficherPause(false);
-  barreTitre.textContent = `${micro ? "🎤 Dans le micro" : "🎧 Écoute"} : ${element.dataset.titre}`;
-  progression.value = 0;
-  progression.disabled = false;
-  boutonStop.disabled = false;
-  boutonPause.disabled = false;
+  lectureEnCours = { boite: li, bouton };
+  li.classList.add("en-cours");
+  li.classList.toggle("en-direct", micro);
+  bouton.innerHTML = ICONES.stop;
+  bouton.setAttribute("aria-label", `Arrêter : ${li.dataset.titre}`);
+  afficherTemps(li, 0);
   ecoute.src = url;
   ecoute.play().catch(() => {}); // les erreurs de lecture passent par ecoute.onerror
 }
 
 function arreter() {
   ecoute.pause();
-  barreTitre.textContent = "Aucun son en cours";
-  progression.value = 0;
-  progression.disabled = true;
-  boutonStop.disabled = true;
-  boutonPause.disabled = true;
-  boutonPause.textContent = "⏸";
-  boutonPause.setAttribute("aria-label", "Pause");
-  barre.classList.remove("en-direct");
   if (!lectureEnCours) return;
-  const { element, bouton } = lectureEnCours;
-  element.classList.remove("en-cours", "en-direct");
-  element.style.removeProperty("--progression");
-  remettreBouton(bouton, element);
+  const { boite, bouton } = lectureEnCours;
+  boite.classList.remove("en-cours", "en-direct");
+  remettreBouton(bouton, boite);
   lectureEnCours = null;
+  afficherTemps(boite, 0);
 }
 
 ecoute.onended = arreter;
 ecoute.onerror = () => {
   if (!lectureEnCours) return;
-  etat.textContent = `Impossible de lire « ${lectureEnCours.element.dataset.titre} ».`;
+  etat.textContent = `Impossible de lire « ${lectureEnCours.boite.dataset.titre} ».`;
   arreter();
 };
-ecoute.ontimeupdate = () => {
-  progression.value = ecoute.duration ? ecoute.currentTime / ecoute.duration : 0;
-  // La tuile se remplit pendant la lecture.
-  lectureEnCours?.element.style.setProperty("--progression", `${progression.value * 100}%`);
+// La durée est retenue pour l'afficher aussi quand le son ne joue plus.
+ecoute.onloadedmetadata = () => {
+  if (lectureEnCours && Number.isFinite(ecoute.duration)) durees.set(lectureEnCours.boite.dataset.cle, ecoute.duration);
 };
-boutonStop.onclick = arreter;
-boutonRejouer.onclick = () => dernier && jouer(dernier.element, dernier.bouton, dernier.url, dernier.micro);
-// Clic ou glissement sur la barre : saute à ce moment du son.
-progression.oninput = () => {
-  if (ecoute.duration) ecoute.currentTime = progression.value * ecoute.duration;
-};
-
-function afficherPause(enPause) {
-  boutonPause.textContent = enPause ? "▶" : "⏸";
-  boutonPause.setAttribute("aria-label", enPause ? "Reprendre" : "Pause");
-  if (!lectureEnCours?.bouton.dataset.icone) return;
-  const { element, bouton } = lectureEnCours;
-  bouton.textContent = enPause ? bouton.dataset.icone : "■";
-  bouton.setAttribute("aria-label", `${enPause ? "Reprendre" : "Arrêter"} ${element.dataset.titre}`);
-}
-
-// Suit l'état réel du lecteur ; ignoré après arreter(), qui remet tout lui-même.
-ecoute.onplay = () => lectureEnCours && afficherPause(false);
-ecoute.onpause = () => lectureEnCours && afficherPause(true);
-boutonPause.onclick = () => (ecoute.paused ? ecoute.play() : ecoute.pause());
+ecoute.ontimeupdate = () => lectureEnCours && afficherTemps(lectureEnCours.boite, ecoute.currentTime);
 
 // ---------- Démarrage ----------
 

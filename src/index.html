@@ -20,19 +20,17 @@
     <p id="etat" role="status"></p>
     <section id="favoris">
       <p id="favoris-vide" hidden>
-        Aucun favori pour l'instant. Va dans <strong>🔍 Chercher</strong> et clique sur <strong>＋</strong> à côté d'un son.
+        Aucun favori pour l'instant. Va dans <strong>🔍 Chercher</strong> et clique sur <strong>＋</strong> sur un son.
       </p>
-      <div id="grille"></div>
+      <ul id="grille" class="boites"></ul>
     </section>
     <section id="chercher" hidden>
-      <ul id="resultats"></ul>
+      <ul id="resultats" class="boites"></ul>
+      <nav id="pagination" aria-label="Pages de résultats">
+        <button id="page-precedente">◀ Précédente</button>
+        <span id="page-numero">Page 1</span>
+        <button id="page-suivante">Suivante ▶</button>
+      </nav>
     </section>
-    <footer id="lecture">
-      <span id="lecture-titre" aria-live="polite">Aucun son en cours</span>
-      <input id="lecture-progression" type="range" min="0" max="1" step="0.001" value="0" aria-label="Progression" disabled />
-      <button id="lecture-rejouer" aria-label="Rejouer le dernier son" disabled>↻</button>
-      <button id="lecture-pause" aria-label="Pause" disabled>⏸</button>
-      <button id="lecture-stop" aria-label="Arrêter" disabled>■</button>
-    </footer>
   </body>
 </html>
