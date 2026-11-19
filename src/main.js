@@ -37,7 +37,7 @@ function ouvrirOnglet(nom) {
   if (nom === "chercher") {
     if (!rechercheLancee) {
       rechercheLancee = true;
-      recommencer();
+      afficherPage(1);
     }
     document.querySelector("#mot").focus();
   }
@@ -230,58 +230,48 @@ function marquerAjout(plus) {
   plus.setAttribute("aria-label", `${deja ? "Déjà dans les favoris" : "Ajouter aux favoris"} : ${plus.dataset.titre}`);
 }
 
-// ---------- Recherche ----------
+// ---------- Recherche : une seule page affichée à la fois ----------
+
+const precedente = document.querySelector("#page-precedente");
+const suivante = document.querySelector("#page-suivante");
+const numeroPage = document.querySelector("#page-numero");
 
 let mot = "";
-let page = 0;
-let finie = false;
-let enCours = false;
-let generation = 0; // change à chaque nouvelle recherche, pour jeter les réponses périmées
+let page = 1;
+let generation = 0; // change à chaque chargement, pour jeter les réponses périmées
 
-async function pageSuivante() {
-  if (enCours || finie) return;
-  enCours = true;
-  const g = generation;
+async function afficherPage(n) {
+  const g = ++generation;
+  page = n;
+  liste.replaceChildren();
+  numeroPage.textContent = `Page ${n}`;
+  precedente.disabled = true;
+  suivante.disabled = true;
   etat.textContent = "Chargement…";
   try {
     const sons = mot
-      ? await invoke("chercher", { source: SOURCE, mot, page: page + 1 })
-      : await invoke("lister", { source: SOURCE, page: page + 1 });
+      ? await invoke("chercher", { source: SOURCE, mot, page: n })
+      : await invoke("lister", { source: SOURCE, page: n });
     if (g !== generation) return;
-    page += 1;
-    if (sons.length === 0) finie = true;
-    for (const [titre, url] of sons) {
-      liste.append(boite(titre, url, url, liste.children.length, () => boutonAjout(titre, url)));
-    }
-    etat.textContent = finie && page === 1 ? "Aucun son trouvé." : "";
+    sons.forEach(([titre, url], i) => liste.append(boite(titre, url, url, i, () => boutonAjout(titre, url))));
+    etat.textContent = sons.length ? "" : n === 1 ? "Aucun son trouvé." : "Plus aucun son.";
+    suivante.disabled = sons.length === 0;
   } catch (e) {
     if (g !== generation) return;
-    finie = true;
     etat.textContent = `Erreur : ${e}`;
   }
-  enCours = false;
-  // La liste ne remplit pas encore l'écran : on charge la suite (seulement si on la voit).
-  if (!finie && !sectionChercher.hidden && document.body.scrollHeight <= innerHeight) pageSuivante();
+  precedente.disabled = n === 1;
+  scrollTo(0, 0);
 }
 
-function recommencer() {
-  generation += 1;
-  enCours = false;
-  liste.replaceChildren();
-  page = 0;
-  finie = false;
-  pageSuivante();
-}
+precedente.onclick = () => afficherPage(page - 1);
+suivante.onclick = () => afficherPage(page + 1);
 
 document.querySelector("#recherche").onsubmit = (e) => {
   e.preventDefault();
   mot = document.querySelector("#mot").value.trim();
-  recommencer();
+  afficherPage(1);
 };
-
-addEventListener("scroll", () => {
-  if (!sectionChercher.hidden && innerHeight + scrollY >= document.body.scrollHeight - 200) pageSuivante();
-});
 
 // ---------- Lecture ----------
 
